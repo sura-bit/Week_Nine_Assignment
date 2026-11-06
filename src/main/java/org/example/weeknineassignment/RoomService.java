@@ -37,6 +37,12 @@ public class RoomService {
         return roomRepository.count();
     }
 
+    public Room get(Long id) {
+        return roomRepository.findById(id)
+                .orElseThrow(() ->
+                        new NotFoundException("room " + id + " not found"));
+    }
+
     private Sort toSort(String sort) {
         if ("capacity".equals(sort)) return Sort.by("capacity");
         if ("name".equals(sort)) return Sort.by("name");
@@ -57,17 +63,10 @@ public class RoomService {
     }
 
     @Transactional
-    public Optional<Room> update(
-            Long id,
-            String name,
-            int capacity) {
-
-        checkCapacity(capacity);
-
-        return roomRepository.findById(id)
-                .map(existing -> roomRepository.save(
-                        new Room(id, name, capacity)
-                ));
+    public Room update(Long id, String name, int capacity) {
+        Room room = get(id);
+        room.update(name, capacity);
+        return room;
     }
 
     public boolean delete(Long id) {

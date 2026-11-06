@@ -35,4 +35,9 @@ public class Room {
     public int getCapacity() {
         return capacity;
     }
+
+    public void update(String name, int capacity) {
+        this.name = name;
+        this.capacity = capacity;
+    }
 }
