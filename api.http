@@ -103,10 +103,96 @@ GET http://localhost:8080/api/reservations/1
 ### 25. Reservation that does not exist -> 404
 GET http://localhost:8080/api/reservations/99
 
-### 26. Delete a reservation -> 204
-DELETE http://localhost:8080/api/reservations/1
+### ---------- Week 9 in class: dirty checking and error bodies (rooms) ----------
 
-### 27. Delete a reservation that does not exist -> 404
-DELETE http://localhost:8080/api/reservations/99
+### 26. Same values again (expect 200; console: one select, no update)
+PUT http://localhost:8080/api/rooms/2
+Content-Type: application/json
 
+{ "name": "Study Pod", "capacity": 4 }
 
+### 27. New values (expect 200; console: select, then update)
+PUT http://localhost:8080/api/rooms/2
+Content-Type: application/json
+
+{ "name": "Study Pod XL", "capacity": 6 }
+
+### 28. Blank name (expect 400, fieldErrors: name)
+POST http://localhost:8080/api/rooms
+Content-Type: application/json
+
+{ "name": "", "capacity": 5 }
+
+### 29. Capacity 0 (expect 400, fieldErrors: capacity)
+POST http://localhost:8080/api/rooms
+Content-Type: application/json
+
+{ "name": "Closet", "capacity": 0 }
+
+### 30. Two bad fields (expect 400, two fieldErrors)
+POST http://localhost:8080/api/rooms
+Content-Type: application/json
+
+{ "name": "", "capacity": 50 }
+
+### 31. Missing room (expect 404, message "room 99 not found")
+GET http://localhost:8080/api/rooms/99
+
+### 32. Room with reservations (expect 409, message "room 1 has reservations")
+DELETE http://localhost:8080/api/rooms/1
+
+### 33. A URL that does not exist (expect 404, not 500)
+GET http://localhost:8080/api/nothing
+
+### ---------- Week 9 Lab E: reservations and bad input ----------
+
+### 34. Blank reservedBy (expect 400, fieldErrors: reservedBy)
+POST http://localhost:8080/api/rooms/1/reservations
+Content-Type: application/json
+
+{ "reservedBy": "", "startTime": "2026-11-02T10:00:00", "endTime": "2026-11-02T11:00:00" }
+
+### 35. Missing endTime (expect 400, fieldErrors: endTime)
+POST http://localhost:8080/api/rooms/1/reservations
+Content-Type: application/json
+
+{ "reservedBy": "Lee", "startTime": "2026-11-02T10:00:00" }
+
+### 36. End before start (expect 400, message "startTime must be before endTime")
+POST http://localhost:8080/api/rooms/1/reservations
+Content-Type: application/json
+
+{ "reservedBy": "Lee", "startTime": "2026-11-02T12:00:00", "endTime": "2026-11-02T11:00:00" }
+
+### 37. Overlaps Mina (expect 409, message "room 1 is already booked at that time")
+POST http://localhost:8080/api/rooms/1/reservations
+Content-Type: application/json
+
+{ "reservedBy": "Lee", "startTime": "2026-10-06T10:30:00", "endTime": "2026-10-06T11:30:00" }
+
+### 38. Missing reservation (expect 404, message "reservation 99 not found")
+GET http://localhost:8080/api/reservations/99
+
+### 39. Missing query parameter (expect 400)
+GET http://localhost:8080/api/reservations
+
+### 40. Not a number (expect 400, "request body is missing or is not valid JSON")
+POST http://localhost:8080/api/rooms
+Content-Type: application/json
+
+{ "name": "Lab", "capacity": "ten" }
+
+### 41. Not an id (expect 400, "'id' has the wrong type")
+GET http://localhost:8080/api/rooms/abc
+
+### 42. Custom failure: reservation ID is not numeric (expect 400)
+GET http://localhost:8080/api/reservations/not-a-number
+
+### 43. Custom failure: room name exceeds 100 characters (expect 400)
+POST http://localhost:8080/api/rooms
+Content-Type: application/json
+
+{
+  "name": "This room name is intentionally longer than one hundred characters so that the name size validation rule rejects the request before it reaches the service layer",
+  "capacity": 5
+}
