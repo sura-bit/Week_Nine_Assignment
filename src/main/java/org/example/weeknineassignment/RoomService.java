@@ -12,8 +12,11 @@ public class RoomService {
 
     private final RoomRepository roomRepository;
 
-    public RoomService(RoomRepository roomRepository) {
+    private final ReservationRepository reservationRepository;
+
+    public RoomService(RoomRepository roomRepository, ReservationRepository reservationRepository) {
         this.roomRepository = roomRepository;
+        this.reservationRepository = reservationRepository;
     }
 
     public List<Room> search(Integer minCapacity, String keyword, String sort) {
@@ -73,6 +76,11 @@ public class RoomService {
         if (!roomRepository.existsById(id)) {
             return false;
         }
+
+        if (reservationRepository.existsByRoomId(id)) {
+            throw new ConflictException("room " + id + " has reservations");
+        }
+
         roomRepository.deleteById(id);
         return true;
     }
