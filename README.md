@@ -43,66 +43,149 @@ Run `reset.sql` first, then:
 ./gradlew bootRun
 ```
 
-## API contract (run reset.sql first, then api.http in order)
+## API Endpoints
 
-| # | Request | Expected |
-|---|---------|----------|
-| 1 | GET /api/rooms | 200 |
-| 2 | GET /api/rooms?minCapacity=6 | 200 |
-| 3 | GET /api/rooms?keyword=pod | 200 |
-| 4 | GET /api/rooms?minCapacity=6&keyword=roof | 200 |
-| 5 | GET /api/rooms?sort=capacity | 200 |
-| 6 | GET /api/rooms/2 | 200 |
-| 7 | GET /api/rooms/99 | 404 |
-| 8 | PUT /api/rooms/1 | 200 |
-| 9 | PUT /api/rooms/1 (capacity 0) | 400 |
-| 10 | PUT /api/rooms/99 | 404 |
-| 11 | POST /api/rooms | 201 |
-| 12 | POST /api/rooms (capacity 25) | 400 |
-| 13 | DELETE /api/rooms/3 | 204 |
-| 14 | GET /api/rooms/count | 200 |
-| 15 | GET /api/rooms/1/reservations | 200, 3 items |
-| 16 | GET /api/rooms/99/reservations | 404 |
-| 17 | POST /api/rooms/1/reservations (Kim, 14 Oct 10–11) | 201, /api/reservations/6 |
-| 18 | POST /api/rooms/1/reservations (6 Oct 10:30–11:30) | 409 |
-| 19 | POST /api/rooms/1/reservations (6 Oct 11:00–12:00) | 201, /api/reservations/7 |
-| 20 | POST /api/rooms/1/reservations (end before start) | 400 |
-| 21 | POST /api/rooms/99/reservations | 404 |
-| 22 | GET /api/reservations?reservedBy=Mina | 200, 2 items |
-| 23 | DELETE /api/rooms/1 | 409 |
-| 24 | GET /api/reservations/6 | 200 |
-| 25 | GET /api/reservations/99 | 404 |
-| 26 | DELETE /api/reservations/7 | 204 |
-| 27 | DELETE /api/reservations/99 | 404 |
-
-## Endpoints
-
-| Method | Path | Status |
+| Method | Endpoint | Description |
 |---|---|---|
-| GET | /api/rooms | 200 |
-| GET | /api/rooms/count | 200 |
-| GET | /api/rooms/{id} | 200 / 404 |
-| POST | /api/rooms | 201 / 400 |
-| PUT | /api/rooms/{id} | 200 / 400 / 404 |
-| DELETE | /api/rooms/{id} | 204 / 404 / 409 |
-| GET | /api/rooms/{roomId}/reservations | 200 / 404 |
-| POST | /api/rooms/{roomId}/reservations | 201 / 400 / 404 / 409 |
-| GET | /api/reservations?reservedBy= | 200 |
-| GET | /api/reservations/{id} | 200 / 404 |
-| DELETE | /api/reservations/{id} | 204 / 404 |
+| GET | `/api/rooms` | Retrieve all rooms |
+| GET | `/api/rooms?minCapacity={n}` | Filter rooms by minimum capacity |
+| GET | `/api/rooms?keyword={word}` | Search rooms by keyword |
+| GET | `/api/rooms?sort=capacity` | Sort rooms by capacity |
+| GET | `/api/rooms/{id}` | Retrieve a room by ID |
+| POST | `/api/rooms` | Create a room |
+| PUT | `/api/rooms/{id}` | Update a room |
+| DELETE | `/api/rooms/{id}` | Delete a room |
+| GET | `/api/rooms/count` | Count all rooms |
+| GET | `/api/rooms/{id}/reservations` | Retrieve reservations for a room |
+| POST | `/api/rooms/{id}/reservations` | Create a reservation |
+| GET | `/api/reservations?reservedBy={name}` | Retrieve reservations by user |
+| GET | `/api/reservations/{id}` | Retrieve a reservation by ID |
 
-## Why request 19 succeeds
+## Testing with api.http
 
-Two bookings overlap only if new start < old end AND new end > old start; request 19 starts
-at 11:00, exactly when Mina's 10:00–11:00 booking ends, and 11:00 > 11:00 is false, so the
-bookings only touch and no overlap is counted.
+The `api.http` file contains 43 HTTP requests for testing the API.
 
-## 409: two rules, two approaches
+Run the requests in order after resetting the database.
 
-Deleting a room uses approach A: the database's foreign key refuses the delete and
-RoomExceptionHandler turns that into 409, because the database already enforces this rule.
-The overlap rule uses approach B: the service checks first and throws ConflictException,
-because no database constraint can express "two time ranges must not overlap".
+### Requests 1-25: Room and Reservation Operations
+
+| # | Test | Expected Status |
+|---:|---|---:|
+| 1 | Get all rooms | 200 |
+| 2 | Filter by minimum capacity | 200 |
+| 3 | Filter by keyword | 200 |
+| 4 | Apply combined filters | 200 |
+| 5 | Sort by capacity | 200 |
+| 6 | Get room by ID | 200 |
+| 7 | Get nonexistent room | 404 |
+| 8 | Update room | 200 |
+| 9 | Update with invalid capacity | 400 |
+| 10 | Update nonexistent room | 404 |
+| 11 | Create room | 201 |
+| 12 | Create room with excessive capacity | 400 |
+| 13 | Delete room without reservations | 204 |
+| 14 | Count rooms | 200 |
+| 15 | Get reservations for room 1 | 200 |
+| 16 | Get reservations for nonexistent room | 404 |
+| 17 | Create reservation | 201 |
+| 18 | Create overlapping reservation | 409 |
+| 19 | Create reservation starting when another ends | 201 |
+| 20 | Create reservation with end before start | 400 |
+| 21 | Create reservation for nonexistent room | 404 |
+| 22 | Get Mina's reservations | 200 |
+| 23 | Delete room with reservations | 409 |
+| 24 | Get reservation by ID | 200 |
+| 25 | Get nonexistent reservation | 404 |
+
+### Requests 26-33: Week 9 - Dirty Checking and Error Responses
+
+| # | Test | Expected Status |
+|---:|---|---:|
+| 26 | Update room with the same values | 200 |
+| 27 | Update room with new values | 200 |
+| 28 | Create room with blank name | 400 |
+| 29 | Create room with capacity 0 | 400 |
+| 30 | Create room with two invalid fields | 400 |
+| 31 | Get nonexistent room | 404 |
+| 32 | Delete room with reservations | 409 |
+| 33 | Request nonexistent URL | 404 |
+
+For request 26, check the console: the update should execute one SELECT query without an UPDATE statement.
+
+For request 27, check the console: the application should execute a SELECT followed by an UPDATE statement.
+
+### Requests 34–41: Week 9 Lab E - Reservation Validation
+
+| # | Test | Expected Status |
+|---:|---|---:|
+| 34 | Create reservation with blank reservedBy | 400 |
+| 35 | Create reservation without endTime | 400 |
+| 36 | Create reservation with end before start | 400 |
+| 37 | Create overlapping reservation | 409 |
+| 38 | Get nonexistent reservation | 404 |
+| 39 | Get reservations without required query parameter | 400 |
+| 40 | Submit a non-numeric room capacity | 400 |
+| 41 | Submit a non-numeric room ID | 400 |
+
+### Requests 42–43: Additional Error Tests
+
+| # | Test | Expected Status |
+|---:|---|---:|
+| 42 | Retrieve reservation using a non-numeric ID | 400 |
+| 43 | Create room with a name exceeding 100 characters | 400 |
+
+## Validation
+
+The API validates incoming request data before processing it.
+
+Examples include:
+
+- Room names must not be blank.
+- Room names must not exceed 100 characters.
+- Room capacity must be within the permitted range.
+- Reservation `reservedBy` must not be blank.
+- Reservation start and end times are required.
+- Reservation start time must be before end time.
+
+Invalid request fields are returned through the `fieldErrors` property in the error response.
+
+## Error Responses
+
+The API uses a consistent `ApiError` response structure:
+
+```json
+{
+  "status": 400,
+  "error": "Bad Request",
+  "message": "Validation failed",
+  "path": "/api/rooms",
+  "fieldErrors": {
+    "name": "must not be blank"
+  }
+}
+```
+
+The response contains:
+
+| Field | Description |
+|---|---|
+| `status` | HTTP status code |
+| `error` | HTTP error description |
+| `message` | Explanation of the error |
+| `path` | Requested API endpoint |
+| `fieldErrors` | Details of individual validation failures |
+
+### HTTP Status Codes
+
+| Status | Meaning |
+|---:|---|
+| 200 | Request successful |
+| 201 | Resource created successfully |
+| 204 | Resource deleted successfully |
+| 400 | Invalid request or input validation failure |
+| 404 | Requested resource or endpoint not found |
+| 409 | Conflict, such as an overlapping reservation or deleting a room with reservations |
+| 500 | Unexpected server error |
 
 ## AI use
 
