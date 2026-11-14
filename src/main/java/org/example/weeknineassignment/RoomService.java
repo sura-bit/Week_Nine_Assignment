@@ -72,17 +72,14 @@ public class RoomService {
         return room;
     }
 
-    public boolean delete(Long id) {
+    public void delete(Long id) {
         if (!roomRepository.existsById(id)) {
-            return false;
+            throw new NotFoundException("room " + id + " not found");
         }
-
         if (reservationRepository.existsByRoomId(id)) {
             throw new ConflictException("room " + id + " has reservations");
         }
-
         roomRepository.deleteById(id);
-        return true;
     }
 
     public void checkCapacity(int capacity) {
